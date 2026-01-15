@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Scheduler</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button id="upload-btn" class="btn btn-primary">Upload File</button>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls" hidden>
+                <div class="semester-tabs" id="semester-tabs">
+                    <!-- Semester tabs populated dynamically -->
+                </div>
+            </div>
+            <h1 class="header-title">Course Scheduler</h1>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Schedule Grid -->
+            <div class="schedule-container">
+                <!-- Day Headers -->
+                <div class="day-headers">
+                    <div class="day-header">Mon.</div>
+                    <div class="day-header">Tue.</div>
+                    <div class="day-header">Wed.</div>
+                    <div class="day-header">Thu.</div>
+                    <div class="day-header">Fri.</div>
+                </div>
+
+                <!-- Schedule Grid - 5 columns for days -->
+                <div class="schedule-grid" id="schedule-grid">
+                    <div class="day-column" data-day="m" id="col-mon"></div>
+                    <div class="day-column" data-day="t" id="col-tue"></div>
+                    <div class="day-column" data-day="w" id="col-wed"></div>
+                    <div class="day-column" data-day="r" id="col-thu"></div>
+                    <div class="day-column" data-day="f" id="col-fri"></div>
+                </div>
+
+                <!-- Upload Prompt (shown when no file loaded) -->
+                <div class="upload-prompt" id="upload-prompt">
+                    <div class="upload-dropzone" id="upload-dropzone">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Drag and drop a schedule file here</p>
+                        <p class="upload-hint">or click "Upload File" above</p>
+                        <p class="upload-formats">Supports CSV and Excel (.xlsx) files</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <aside class="sidebar">
+                <!-- Faculty Panel -->
+                <section class="panel faculty-panel">
+                    <h2 class="panel-title">Faculty</h2>
+                    <div class="faculty-header">
+                        <span>Name</span>
+                        <span>View</span>
+                        <span>FTE</span>
+                    </div>
+                    <div class="faculty-list" id="faculty-list">
+                        <!-- Faculty rows populated dynamically -->
+                    </div>
+                    <div class="faculty-controls">
+                        <label class="checkbox-label">
+                            <span>Show/hide all</span>
+                            <input type="checkbox" id="show-all-checkbox" checked>
+                        </label>
+                        <p class="hint">Double-click color to change</p>
+                    </div>
+                </section>
+
+                <!-- Options Panel -->
+                <section class="panel options-panel">
+                    <h2 class="panel-title">Options</h2>
+                    <label class="checkbox-label">
+                        <span>Enable TBA overlap checking</span>
+                        <input type="checkbox" id="tba-overlap-checkbox" checked>
+                    </label>
+                    <div class="filter-group">
+                        <label class="checkbox-label">
+                            <span>Filter by course number</span>
+                            <input type="checkbox" id="filter-checkbox">
+                        </label>
+                        <input type="text" id="filter-input" class="filter-input" placeholder="e.g., BIO1">
+                    </div>
+                    <div class="font-controls">
+                        <button id="dec-font-btn" class="btn btn-small">Dec. font</button>
+                        <button id="inc-font-btn" class="btn btn-small">Inc. font</button>
+                    </div>
+                </section>
+
+                <!-- Course Info Panel -->
+                <section class="panel course-panel">
+                    <h2 class="panel-title">Course</h2>
+                    <div class="course-info" id="course-info">
+                        <div class="course-name" id="course-name">No course selected</div>
+                        <div class="course-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Faculty:</span>
+                                <span class="detail-value" id="detail-faculty">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Days:</span>
+                                <span class="detail-value" id="detail-days">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Start:</span>
+                                <span class="detail-value" id="detail-start">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Length:</span>
+                                <span class="detail-value" id="detail-length">-</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">FTE:</span>
+                                <span class="detail-value" id="detail-fte">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="course-actions">
+                        <button id="edit-course-btn" class="btn" disabled>Edit Course</button>
+                        <button id="add-course-btn" class="btn" disabled>Add Course</button>
+                    </div>
+                </section>
+
+                <!-- Notes Panel -->
+                <section class="panel notes-panel">
+                    <h2 class="panel-title">Note</h2>
+                    <div class="note-text" id="note-text"></div>
+                    <div class="homeless-courses" id="homeless-courses" hidden>
+                        <h3>Homeless Courses</h3>
+                        <div class="homeless-list" id="homeless-list"></div>
+                    </div>
+                </section>
+
+                <!-- File Panel -->
+                <section class="panel file-panel">
+                    <h2 class="panel-title">File</h2>
+                    <div class="file-actions">
+                        <button id="save-btn" class="btn" disabled>Save file</button>
+                    </div>
+                </section>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Edit Course Modal -->
+    <div class="modal-overlay" id="edit-modal" hidden>
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Edit Course</h2>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label class="form-label">Course Number:</label>
+                    <span class="form-current" id="edit-current-num"></span>
+                    <input type="text" id="edit-course-num" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Course Name:</label>
+                    <span class="form-current" id="edit-current-name"></span>
+                    <input type="text" id="edit-course-name" class="form-input">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Faculty:</label>
+                    <span class="form-current" id="edit-current-faculty"></span>
+                    <select id="edit-faculty" class="form-select"></select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Days:</label>
+                    <span class="form-current" id="edit-current-days"></span>
+                    <input type="text" id="edit-days" class="form-input" placeholder="e.g., MWF or TR">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Start Time:</label>
+                    <span class="form-current" id="edit-current-start"></span>
+                    <select id="edit-start" class="form-select"></select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Length:</label>
+                    <span class="form-current" id="edit-current-length"></span>
+                    <select id="edit-length" class="form-select"></select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">FTE:</label>
+                    <span class="form-current" id="edit-current-fte"></span>
+                    <select id="edit-fte" class="form-select">
+                        <option value="1">1.0</option>
+                        <option value="0.75">0.75</option>
+                        <option value="0.67">0.67</option>
+                        <option value="0.5">0.5</option>
+                        <option value="0.25">0.25</option>
+                        <option value="0">0</option>
+                    </select>
+                </div>
+                <div class="form-note" id="edit-note"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-save" class="btn btn-primary">Save</button>
+                <button id="modal-cancel" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>

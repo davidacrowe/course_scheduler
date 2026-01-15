@@ -1,0 +1,30 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code
+.claude/
+
+# Data files
+*.xlsx
+*.csv
+
+# Reference files (keep local only)
+*.pdf
+scheduler.py
+
+# Screenshots and images (keep local only)
+screenshot.png
+time_boxes.jpg
+
+# Vim/editor temp files
+*.un~
+*~
+
+# Temporary files
+*.tmp
+*.log
