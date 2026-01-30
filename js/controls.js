@@ -24,14 +24,14 @@ let showAllCheckbox;
 let tbaOverlapCheckbox;
 let filterCheckbox, filterInput;
 let decFontBtn, incFontBtn;
-let courseNameEl, detailFaculty, detailDays, detailStart, detailLength, detailFte;
+let courseNameEl, detailFaculty, detailDays, detailStart, detailLength, detailFte, detailRoom;
 let editCourseBtn, addCourseBtn;
 let noteTextEl;
 
 // Modal elements
 let editModal, modalTitle, modalClose, modalSave, modalCancel, editNote;
-let editCourseNum, editCourseName, editFaculty, editDays, editStart, editLength, editFte;
-let editCurrentNum, editCurrentName, editCurrentFaculty, editCurrentDays, editCurrentStart, editCurrentLength, editCurrentFte;
+let editCourseNum, editCourseName, editFaculty, editNewFaculty, editDays, editStart, editLength, editFte, editRoom;
+let editCurrentNum, editCurrentName, editCurrentFaculty, editCurrentDays, editCurrentStart, editCurrentLength, editCurrentFte, editCurrentRoom;
 
 // FTE labels storage
 const fteLabelElements = {};
@@ -59,6 +59,7 @@ export function initControls() {
     detailStart = document.getElementById('detail-start');
     detailLength = document.getElementById('detail-length');
     detailFte = document.getElementById('detail-fte');
+    detailRoom = document.getElementById('detail-room');
 
     editCourseBtn = document.getElementById('edit-course-btn');
     addCourseBtn = document.getElementById('add-course-btn');
@@ -75,10 +76,12 @@ export function initControls() {
     editCourseNum = document.getElementById('edit-course-num');
     editCourseName = document.getElementById('edit-course-name');
     editFaculty = document.getElementById('edit-faculty');
+    editNewFaculty = document.getElementById('edit-new-faculty');
     editDays = document.getElementById('edit-days');
     editStart = document.getElementById('edit-start');
     editLength = document.getElementById('edit-length');
     editFte = document.getElementById('edit-fte');
+    editRoom = document.getElementById('edit-room');
 
     editCurrentNum = document.getElementById('edit-current-num');
     editCurrentName = document.getElementById('edit-current-name');
@@ -87,6 +90,7 @@ export function initControls() {
     editCurrentStart = document.getElementById('edit-current-start');
     editCurrentLength = document.getElementById('edit-current-length');
     editCurrentFte = document.getElementById('edit-current-fte');
+    editCurrentRoom = document.getElementById('edit-current-room');
 
     // Populate time and length dropdowns
     populateTimeDropdown();
@@ -193,6 +197,30 @@ function setupControlListeners() {
         }
     });
 
+    // Faculty dropdown - show text input when "Add new" is selected
+    editFaculty.addEventListener('change', () => {
+        if (editFaculty.value === '__new__') {
+            editFaculty.hidden = true;
+            editNewFaculty.hidden = false;
+            editNewFaculty.value = '';
+            editNewFaculty.focus();
+        }
+    });
+
+    // New faculty input - on blur or Enter, process the new name
+    editNewFaculty.addEventListener('blur', handleNewFacultyInput);
+    editNewFaculty.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleNewFacultyInput();
+        } else if (e.key === 'Escape') {
+            // Cancel - go back to dropdown
+            editNewFaculty.hidden = true;
+            editFaculty.hidden = false;
+            editFaculty.value = '';
+        }
+    });
+
     // Days validation
     editDays.addEventListener('input', validateDays);
 }
@@ -284,20 +312,18 @@ function openColorPicker(faculty, element) {
 
 /**
  * Calculate contrasting text color (black or white)
+ * Uses the YIQ luminance formula for perceived brightness
  */
 function getContrastColor(hexColor) {
-    // Remove # if present
     const hex = hexColor.replace('#', '');
-
-    // Convert to RGB
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
 
-    // Calculate brightness (using weighted formula)
-    const brightness = r * 0.15 + g * 0.7 + b * 0.114;
+    // YIQ luminance formula - well-established for perceived brightness
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
-    return brightness > 150 ? '#000000' : '#ffffff';
+    return luminance > 0.5 ? '#000000' : '#ffffff';
 }
 
 /**
@@ -329,7 +355,9 @@ export function updateCourseInfo(course) {
         detailStart.textContent = '-';
         detailLength.textContent = '-';
         detailFte.textContent = '-';
+        detailRoom.textContent = '-';
         editCourseBtn.disabled = true;
+        // Don't clear note here - overlap warnings are shown persistently
         return;
     }
 
@@ -339,13 +367,10 @@ export function updateCourseInfo(course) {
     detailStart.textContent = formatTime(course.startTime);
     detailLength.textContent = formatDuration(course.length);
     detailFte.textContent = course.fte;
+    detailRoom.textContent = course.room || '-';
 
     editCourseBtn.disabled = false;
-
-    // Show overlap warning
-    if (course.hasOverlap) {
-        showNote(`Course overlap. Faculty: ${course.faculty}`);
-    }
+    // Note: Overlap warnings are now shown persistently by renderCurrentSemester
 }
 
 /**
@@ -382,6 +407,7 @@ function openEditModal(isNew) {
         editCurrentStart.textContent = '';
         editCurrentLength.textContent = '';
         editCurrentFte.textContent = '';
+        editCurrentRoom.textContent = '';
 
         // Clear inputs
         editCourseNum.value = '';
@@ -391,6 +417,7 @@ function openEditModal(isNew) {
         editStart.value = '';
         editLength.value = '';
         editFte.value = '1';
+        editRoom.value = '';
 
     } else {
         if (!state.selectedCourse) {
@@ -409,6 +436,7 @@ function openEditModal(isNew) {
         editCurrentStart.textContent = formatTime(editingCourse.startTime);
         editCurrentLength.textContent = formatDuration(editingCourse.length);
         editCurrentFte.textContent = editingCourse.fte;
+        editCurrentRoom.textContent = editingCourse.room || '-';
 
         // Pre-fill inputs with current values
         editCourseNum.value = editingCourse.courseNum;
@@ -417,6 +445,7 @@ function openEditModal(isNew) {
         editStart.value = formatTime24(editingCourse.startTime);
         editLength.value = editingCourse.length;
         editFte.value = editingCourse.fte;
+        editRoom.value = editingCourse.room || '';
     }
 
     // Populate faculty dropdown
@@ -427,8 +456,50 @@ function openEditModal(isNew) {
         editFaculty.value = editingCourse.faculty;
     }
 
+    // Reset new faculty input state
+    editNewFaculty.hidden = true;
+    editNewFaculty.value = '';
+    editFaculty.hidden = false;
+
     editNote.textContent = '';
     editModal.hidden = false;
+}
+
+/**
+ * Handle new faculty name input
+ */
+function handleNewFacultyInput() {
+    const newName = editNewFaculty.value.trim();
+
+    if (!newName) {
+        // Empty - go back to dropdown
+        editNewFaculty.hidden = true;
+        editFaculty.hidden = false;
+        editFaculty.value = '';
+        return;
+    }
+
+    // Extract last name for display (same logic as createCourse)
+    let displayName = newName;
+    if (newName.includes(',')) {
+        displayName = newName.split(',')[0].trim();
+    } else if (newName.includes(' ')) {
+        const parts = newName.split(' ');
+        displayName = parts[parts.length - 1].trim();
+    }
+
+    // Add new option to dropdown
+    const newOption = document.createElement('option');
+    newOption.value = displayName;
+    newOption.textContent = displayName;
+    // Insert before the "__new__" option
+    const addNewOption = editFaculty.querySelector('option[value="__new__"]');
+    editFaculty.insertBefore(newOption, addNewOption);
+
+    // Switch back to dropdown with new faculty selected
+    editNewFaculty.hidden = true;
+    editFaculty.hidden = false;
+    editFaculty.value = displayName;
 }
 
 /**
@@ -472,11 +543,12 @@ function saveEditModal() {
         return;
     }
 
-    // Handle new faculty
+    // Get faculty value (new faculty is handled by the text input which updates the dropdown)
     let facultyValue = editFaculty.value;
     if (facultyValue === '__new__') {
-        facultyValue = prompt('Enter new faculty name:');
-        if (!facultyValue) return;
+        // User selected "Add new" but didn't enter a name
+        editNote.textContent = 'Please enter a faculty name or select an existing one.';
+        return;
     }
 
     if (isAddingNew) {
@@ -521,7 +593,8 @@ function saveEditModal() {
             days: daysValue,
             startTime: formatTime24(startTime),
             endTime: formatTime24(endTime),
-            fte: editFte.value || '1'
+            fte: editFte.value || '1',
+            room: editRoom.value.trim()
         });
 
     } else {
@@ -565,6 +638,10 @@ function saveEditModal() {
 
         if (editFte.value && parseFloat(editFte.value) !== editingCourse.fte) {
             updates.fte = parseFloat(editFte.value);
+        }
+
+        if (editRoom.value.trim() !== (editingCourse.room || '')) {
+            updates.room = editRoom.value.trim();
         }
 
         if (Object.keys(updates).length > 0) {

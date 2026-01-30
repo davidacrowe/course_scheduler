@@ -34,9 +34,15 @@ export function createCourse(rowData) {
         endTime: endTime,
         length: (endTime - startTime) / (1000 * 60), // Duration in minutes
         fte: fte,
+        room: rowData.room || '',
         visible: true,
         hasOverlap: false,
-        overlappingCourses: []
+        overlappingCourses: [],
+        hasRoomOverlap: false,
+        roomOverlappingCourses: [],
+        // Preserve original row data for saving back in original format
+        _originalRow: rowData._originalRow || null,
+        _originalRowIndex: rowData._originalRowIndex || null
     };
 
     return course;
@@ -68,13 +74,15 @@ function extractLastName(faculty) {
 }
 
 /**
- * Check all courses for overlaps
+ * Check all courses for overlaps (faculty and room)
  */
 export function checkAllOverlaps(courses, checkTBA = true) {
     // Reset overlap flags
     for (const course of courses) {
         course.hasOverlap = false;
         course.overlappingCourses = [];
+        course.hasRoomOverlap = false;
+        course.roomOverlappingCourses = [];
     }
 
     // Check each pair of courses
@@ -83,20 +91,39 @@ export function checkAllOverlaps(courses, checkTBA = true) {
             const course1 = courses[i];
             const course2 = courses[j];
 
-            // Skip if different faculty
-            if (course1.faculty !== course2.faculty) continue;
+            // Check for time/day overlap first (needed for both faculty and room checks)
+            const timeOverlap = coursesOverlap(course1, course2);
 
-            // Skip TBA faculty if not checking
-            if (!checkTBA && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD')) {
-                continue;
+            // Check faculty overlap
+            if (course1.faculty === course2.faculty) {
+                // Skip TBA faculty if not checking
+                if (!checkTBA && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD')) {
+                    // Skip
+                } else if (timeOverlap) {
+                    course1.hasOverlap = true;
+                    course2.hasOverlap = true;
+                    course1.overlappingCourses.push(course2.id);
+                    course2.overlappingCourses.push(course1.id);
+                }
             }
 
-            // Check if courses overlap
-            if (coursesOverlap(course1, course2)) {
-                course1.hasOverlap = true;
-                course2.hasOverlap = true;
-                course1.overlappingCourses.push(course2.id);
-                course2.overlappingCourses.push(course1.id);
+            // Check room overlap (only if both have rooms and rooms are not "classroom")
+            if (timeOverlap && course1.room && course2.room) {
+                const room1 = course1.room.toLowerCase().trim();
+                const room2 = course2.room.toLowerCase().trim();
+
+                // Skip if either room is "classroom" (assigned by others, not our concern)
+                if (room1 === 'classroom' || room2 === 'classroom') {
+                    continue;
+                }
+
+                // Check if same room
+                if (room1 === room2) {
+                    course1.hasRoomOverlap = true;
+                    course2.hasRoomOverlap = true;
+                    course1.roomOverlappingCourses.push(course2.id);
+                    course2.roomOverlappingCourses.push(course1.id);
+                }
             }
         }
     }

@@ -140,35 +140,29 @@ body {
     position: relative;
 }
 
-/* Day Headers */
-.day-headers {
+/* Schedule Grid - combined headers and columns */
+.schedule-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: var(--day-header-height) 1fr;
+    flex: 1;
+    overflow: hidden;
     background: var(--panel-bg);
-    border-bottom: 1px solid var(--border-color);
 }
 
+/* Day Headers */
 .day-header {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: var(--day-header-height);
     font-weight: 600;
     border-right: 1px solid var(--border-color);
-}
-
-.day-header:last-child {
-    border-right: none;
-}
-
-/* Schedule Grid */
-.schedule-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    flex: 1;
-    overflow: hidden;
+    border-bottom: 1px solid var(--border-color);
     background: var(--panel-bg);
-    align-items: stretch;
+}
+
+.day-header:nth-child(5) {
+    border-right: none;
 }
 
 .day-column {
@@ -249,6 +243,11 @@ body {
 .course-block.overlap {
     background-color: var(--error-bg) !important;
     color: var(--error-color) !important;
+}
+
+.course-block.room-overlap {
+    background-color: #4a4a4a !important;
+    color: #ffffff !important;
 }
 
 .course-block.hidden {

@@ -24,17 +24,15 @@
         <main class="main-content">
             <!-- Schedule Grid -->
             <div class="schedule-container">
-                <!-- Day Headers -->
-                <div class="day-headers">
+                <!-- Schedule Grid - includes headers and day columns -->
+                <div class="schedule-grid" id="schedule-grid">
+                    <!-- Day Headers (row 1) -->
                     <div class="day-header">Mon.</div>
                     <div class="day-header">Tue.</div>
                     <div class="day-header">Wed.</div>
                     <div class="day-header">Thu.</div>
                     <div class="day-header">Fri.</div>
-                </div>
-
-                <!-- Schedule Grid - 5 columns for days -->
-                <div class="schedule-grid" id="schedule-grid">
+                    <!-- Day Columns (row 2) -->
                     <div class="day-column" data-day="m" id="col-mon"></div>
                     <div class="day-column" data-day="t" id="col-tue"></div>
                     <div class="day-column" data-day="w" id="col-wed"></div>
@@ -99,6 +97,16 @@
                     </div>
                 </section>
 
+                <!-- Notes Panel (moved above Course for visibility) -->
+                <section class="panel notes-panel">
+                    <h2 class="panel-title">Note</h2>
+                    <div class="note-text" id="note-text"></div>
+                    <div class="homeless-courses" id="homeless-courses" hidden>
+                        <h3>Homeless Courses</h3>
+                        <div class="homeless-list" id="homeless-list"></div>
+                    </div>
+                </section>
+
                 <!-- Course Info Panel -->
                 <section class="panel course-panel">
                     <h2 class="panel-title">Course</h2>
@@ -125,21 +133,15 @@
                                 <span class="detail-label">FTE:</span>
                                 <span class="detail-value" id="detail-fte">-</span>
                             </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Room:</span>
+                                <span class="detail-value" id="detail-room">-</span>
+                            </div>
                         </div>
                     </div>
                     <div class="course-actions">
                         <button id="edit-course-btn" class="btn" disabled>Edit Course</button>
                         <button id="add-course-btn" class="btn" disabled>Add Course</button>
-                    </div>
-                </section>
-
-                <!-- Notes Panel -->
-                <section class="panel notes-panel">
-                    <h2 class="panel-title">Note</h2>
-                    <div class="note-text" id="note-text"></div>
-                    <div class="homeless-courses" id="homeless-courses" hidden>
-                        <h3>Homeless Courses</h3>
-                        <div class="homeless-list" id="homeless-list"></div>
                     </div>
                 </section>
 
@@ -176,6 +178,7 @@
                     <label class="form-label">Faculty:</label>
                     <span class="form-current" id="edit-current-faculty"></span>
                     <select id="edit-faculty" class="form-select"></select>
+                    <input type="text" id="edit-new-faculty" class="form-input" placeholder="Enter name (e.g., Smith or Smith, John)" hidden>
                 </div>
                 <div class="form-row">
                     <label class="form-label">Days:</label>
@@ -203,6 +206,11 @@
                         <option value="0.25">0.25</option>
                         <option value="0">0</option>
                     </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Room:</label>
+                    <span class="form-current" id="edit-current-room"></span>
+                    <input type="text" id="edit-room" class="form-input" placeholder="e.g., Lab 101">
                 </div>
                 <div class="form-note" id="edit-note"></div>
             </div>

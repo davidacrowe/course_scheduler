@@ -155,11 +155,9 @@ function handleDrop(e) {
         draggedCourse.days = targetDay;
     }
 
-    // Re-render
+    // Re-render (this will also update overlap warnings)
     renderCurrentSemester();
     selectCourse(draggedCourse);
-
-    showNote('');
 }
 
 /**

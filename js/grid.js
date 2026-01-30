@@ -213,8 +213,10 @@ function createCourseBlock(course, colorInfo, day) {
         block.style.color = colorInfo.text;
     }
 
-    // Apply overlap styling
-    if (course.hasOverlap) {
+    // Apply overlap styling (room overlap takes precedence with darker color)
+    if (course.hasRoomOverlap) {
+        block.classList.add('room-overlap');
+    } else if (course.hasOverlap) {
         block.classList.add('overlap');
     }
 

@@ -6,11 +6,21 @@
 const COLUMN_ALIASES = {
     courseNum: ['class', 'course', 'course number', 'number', 'course num', 'course #', 'course code', 'code', 'section'],
     courseName: ['description', 'name', 'course name', 'title', 'course title', 'course description'],
-    faculty: ['faculty', 'instructor', 'professor', 'teacher', 'taught by', 'lecturer', 'staff'],
+    faculty: ['faculty', 'instructor1', 'professor', 'teacher', 'taught by', 'lecturer', 'staff'],
     days: ['days', 'day', 'meeting days', 'meets', 'schedule', 'meeting pattern', 'pattern'],
     startTime: ['start', 'start time', 'begin', 'from', 'begins', 'start_time', 'begin time'],
-    endTime: ['end', 'end time', 'to', 'until', 'ends', 'end_time', 'finish', 'finish time'],
-    fte: ['fte', 'credits', 'load', 'credit hours', 'hours', 'credit', 'teaching load', 'workload']
+    endTime: ['end', 'end time', 'until', 'ends', 'end_time', 'finish', 'finish time'],
+    fte: ['fte', 'load', 'teaching load', 'workload', 'fte1'],
+    term: ['term', 'semester', 'session', 'academic term', 'term code'],
+    room: ['room', 'classroom', 'location', 'building', 'room number', 'room #']
+};
+
+// Term code patterns for single-sheet format (e.g., "2024SEM1" = Fall, "2024SEM2" = Spring)
+const TERM_CODE_PATTERNS = {
+    fall: [/sem1$/i, /fall/i, /autumn/i, /^fa\d*/i],
+    spring: [/sem2$/i, /spring/i, /^sp\d*/i],
+    winter: [/sem3$/i, /winter/i, /^wi\d*/i],
+    summer: [/sem4$/i, /summer/i, /^su\d*/i]
 };
 
 // Semester detection patterns
@@ -135,11 +145,14 @@ async function parseExcel(file) {
  * Detect semesters from parsed data
  * @param {Object} sheets - Object with sheet names as keys and row arrays as values
  * @param {string} fileName - Original file name
- * @returns {Object} - Object with semester names as keys and normalized row data as values
+ * @returns {Object} - { semesters: {...}, formatInfo: {...} }
+ *   - semesters: Object with semester names as keys and normalized row data as values
+ *   - formatInfo: Metadata about the original format for saving
  */
 export function detectSemesters(sheets, fileName) {
     const semesters = {};
     const sheetNames = Object.keys(sheets);
+    let formatInfo = { type: 'separate-sheets' };
 
     // Try to detect semesters from sheet names
     let detectedSemesters = 0;
@@ -155,7 +168,47 @@ export function detectSemesters(sheets, fileName) {
         }
     }
 
-    // If no semesters detected from sheet names, try file name or use default
+    // If no semesters detected from sheet names, check for single-sheet format with TERM column
+    if (detectedSemesters === 0) {
+        // Look for a sheet that might contain all courses with a TERM column
+        // Common names: "COURSE SCHEDULE", "Schedule", "Courses", "Sheet1", etc.
+        for (const sheetName of sheetNames) {
+            const rows = sheets[sheetName];
+            const result = normalizeRows(rows, true); // Include term data and original rows
+
+            if (result.rows.length > 0 && result.rows[0]._term !== undefined) {
+                // This sheet has a TERM column - split by term
+
+                const semestersByTerm = splitByTerm(result.rows);
+
+                // Store format info for saving back in original format
+                // Include original term codes for each semester
+                const termCodes = {};
+                for (const [semester, data] of Object.entries(semestersByTerm)) {
+                    termCodes[semester] = data.originalTermCode;
+                }
+
+                formatInfo = {
+                    type: 'single-sheet-term',
+                    sheetName: sheetName,
+                    headers: result.headers,
+                    headerRowIndex: result.headerRowIndex,
+                    columnMapping: result.columnMapping,
+                    termCodes: termCodes
+                };
+
+                for (const [semester, data] of Object.entries(semestersByTerm)) {
+                    semesters[semester] = data.rows;
+                    detectedSemesters++;
+                }
+
+                // Stop after finding the first valid sheet with TERM column
+                break;
+            }
+        }
+    }
+
+    // If still no semesters detected, try file name or use default
     if (detectedSemesters === 0) {
         // Check if file name contains semester info
         const fileNameSemester = detectSemesterFromName(fileName);
@@ -173,7 +226,51 @@ export function detectSemesters(sheets, fileName) {
         }
     }
 
-    return semesters;
+    return { semesters, formatInfo };
+}
+
+/**
+ * Split normalized rows by their term values
+ * @param {Array} rows - Normalized rows with _term field
+ * @returns {Object} - Object with semester names as keys and { rows, originalTermCode } as values
+ */
+function splitByTerm(rows) {
+    const semesterMap = {};
+
+    for (const row of rows) {
+        const termValue = row._term || '';
+        const semester = detectSemesterFromTermCode(termValue);
+
+        if (!semesterMap[semester]) {
+            semesterMap[semester] = {
+                rows: [],
+                originalTermCode: termValue // Store original term code for saving
+            };
+        }
+        semesterMap[semester].rows.push(row);
+    }
+
+    return semesterMap;
+}
+
+/**
+ * Detect semester from a term code (e.g., "2024SEM1" -> "fall")
+ */
+function detectSemesterFromTermCode(termCode) {
+    if (!termCode) return 'unknown';
+
+    const code = String(termCode).trim();
+
+    for (const [semester, patterns] of Object.entries(TERM_CODE_PATTERNS)) {
+        for (const pattern of patterns) {
+            if (pattern.test(code)) {
+                return semester;
+            }
+        }
+    }
+
+    // If no pattern matches, use the term code as-is (cleaned up)
+    return code.toLowerCase().replace(/\s+/g, '_') || 'unknown';
 }
 
 /**
@@ -195,11 +292,14 @@ function detectSemesterFromName(name) {
 
 /**
  * Normalize rows to consistent object format
+ * @param {Array} rows - Raw rows from the spreadsheet
+ * @param {boolean} includeTerm - Whether to include the term field and original row data (for single-sheet format)
+ * @returns {Array|Object} - Array of normalized rows, or object with rows and metadata if includeTerm is true
  */
-function normalizeRows(rows) {
+function normalizeRows(rows, includeTerm = false) {
     if (rows.length < 2) {
         console.warn('Not enough rows:', rows.length);
-        return [];
+        return includeTerm ? { rows: [], headers: [], headerRowIndex: 0, columnMapping: null } : [];
     }
 
     console.log('First row (potential header):', rows[0]);
@@ -220,10 +320,13 @@ function normalizeRows(rows) {
 
     if (!columnMapping) {
         console.warn('Could not detect column headers. Rows:', rows.slice(0, 3));
-        return [];
+        return includeTerm ? { rows: [], headers: [], headerRowIndex: 0, columnMapping: null } : [];
     }
 
     console.log('Using column mapping:', columnMapping);
+
+    // Store headers if needed for reconstructing original format
+    const headers = rows[headerRowIndex];
 
     // Parse data rows
     const normalizedRows = [];
@@ -238,18 +341,35 @@ function normalizeRows(rows) {
             days: getCell(row, columnMapping.days) || '',
             startTime: getCell(row, columnMapping.startTime) || '',
             endTime: getCell(row, columnMapping.endTime) || '',
-            fte: getCell(row, columnMapping.fte) || '1'
+            fte: getCell(row, columnMapping.fte) || '1',
+            room: getCell(row, columnMapping.room) || ''
         };
+
+        // Include term field and original row data if requested (for single-sheet format)
+        if (includeTerm) {
+            if (columnMapping.term !== undefined) {
+                normalized._term = getCell(row, columnMapping.term) || '';
+            }
+            // Store original row data for reconstruction when saving
+            normalized._originalRow = [...row];
+            normalized._originalRowIndex = i;
+        }
 
         // Skip rows without course number or days
         if (normalized.courseNum && normalized.days) {
             normalizedRows.push(normalized);
-        } else {
-            console.log('Skipping row (missing courseNum or days):', normalized);
         }
     }
 
-    console.log(`Normalized ${normalizedRows.length} rows`);
+    if (includeTerm) {
+        return {
+            rows: normalizedRows,
+            headers: headers,
+            headerRowIndex: headerRowIndex,
+            columnMapping: columnMapping
+        };
+    }
+
     return normalizedRows;
 }
 

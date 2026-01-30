@@ -23,7 +23,8 @@ export const state = {
         courseFontSize: 13
     },
     selectedCourse: null,
-    fileLoaded: false
+    fileLoaded: false,
+    formatInfo: null         // Original file format info for saving back in same format
 };
 
 // Default color palette (muted/pastel colors)
@@ -124,7 +125,7 @@ function setupEventListeners() {
 
     // Save button
     saveBtn.addEventListener('click', () => {
-        exportToExcel(state.semesters);
+        exportToExcel(state.semesters, state.formatInfo);
     });
 
     // Keyboard shortcuts
@@ -154,7 +155,10 @@ async function handleFile(file) {
         showNote('Loading file...');
 
         const data = await parseFile(file);
-        const semesters = detectSemesters(data, file.name);
+        const { semesters, formatInfo } = detectSemesters(data, file.name);
+
+        // Store format info for saving back in original format
+        state.formatInfo = formatInfo;
 
         // Process each semester
         state.semesters = {};
@@ -216,7 +220,8 @@ async function handleFile(file) {
         // Update document title
         document.title = `Course Scheduler - ${file.name}`;
 
-        showNote('');
+        // Note: Don't call showNote('') here - updateOverlapWarnings() in
+        // renderCurrentSemester() already handles showing warnings or clearing the note
 
     } catch (error) {
         console.error('Error loading file:', error);
@@ -225,25 +230,48 @@ async function handleFile(file) {
 }
 
 /**
+ * Calculate contrasting text color (black or white) for a background
+ * Uses the YIQ luminance formula for perceived brightness
+ */
+function getContrastColor(hexColor) {
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+
+    // YIQ luminance formula - well-established for perceived brightness
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+/**
  * Assign colors to faculty members
  */
 function assignFacultyColors(facultyList) {
     const savedColors = loadSavedColors();
 
-    let colorIndex = 0;
+    // Find the next available color index by checking existing assignments
+    let nextColorIndex = 0;
+    for (const colorInfo of Object.values(state.facultyColors)) {
+        if (colorInfo.index !== undefined && colorInfo.index >= nextColorIndex) {
+            nextColorIndex = colorInfo.index + 1;
+        }
+    }
+
     for (const faculty of facultyList) {
         if (savedColors[faculty]) {
             // Use saved color
             state.facultyColors[faculty] = savedColors[faculty];
         } else if (!state.facultyColors[faculty]) {
-            // Assign new color
-            const color = DEFAULT_COLORS[colorIndex % DEFAULT_COLORS.length];
+            // Assign new color, calculating text color automatically
+            const color = DEFAULT_COLORS[nextColorIndex % DEFAULT_COLORS.length];
             state.facultyColors[faculty] = {
                 bg: color.bg,
-                text: color.text,
-                index: colorIndex % DEFAULT_COLORS.length
+                text: getContrastColor(color.bg),
+                index: nextColorIndex % DEFAULT_COLORS.length
             };
-            colorIndex++;
+            nextColorIndex++;
         }
     }
 
@@ -342,6 +370,35 @@ export function renderCurrentSemester() {
     // Update FTE display
     const fteData = calculateFacultyFTE(semester.courses);
     updateFTEDisplay(fteData);
+
+    // Show persistent overlap warnings
+    updateOverlapWarnings(semester.courses);
+}
+
+/**
+ * Update overlap warnings in the Note section
+ */
+function updateOverlapWarnings(courses) {
+    const facultyOverlaps = courses.filter(c => c.hasOverlap);
+    const roomOverlaps = courses.filter(c => c.hasRoomOverlap);
+
+    const warnings = [];
+
+    if (roomOverlaps.length > 0) {
+        const rooms = [...new Set(roomOverlaps.map(c => c.room))];
+        warnings.push(`Room conflicts: ${rooms.join(', ')}`);
+    }
+
+    if (facultyOverlaps.length > 0) {
+        const faculty = [...new Set(facultyOverlaps.map(c => c.faculty))];
+        warnings.push(`Faculty conflicts: ${faculty.join(', ')}`);
+    }
+
+    if (warnings.length > 0) {
+        showNote(warnings.join(' | '));
+    } else {
+        showNote('');
+    }
 }
 
 /**
@@ -396,6 +453,17 @@ export function updateCourse(course, updates) {
         course.length = (course.endTime - course.startTime) / (1000 * 60);
     }
 
+    // If faculty changed, ensure new faculty is in the list with color
+    if (updates.faculty && state.activeSemester) {
+        if (!state.semesters[state.activeSemester].faculty.includes(updates.faculty)) {
+            state.semesters[state.activeSemester].faculty.push(updates.faculty);
+            state.semesters[state.activeSemester].faculty.sort();
+            assignFacultyColors([updates.faculty]);
+            state.facultyVisible[updates.faculty] = true;
+            updateFacultyList(state.semesters[state.activeSemester].faculty);
+        }
+    }
+
     renderCurrentSemester();
     selectCourse(course);
 }
@@ -413,6 +481,7 @@ export function addCourse(courseData) {
             state.semesters[state.activeSemester].faculty.push(course.faculty);
             state.semesters[state.activeSemester].faculty.sort();
             assignFacultyColors([course.faculty]);
+            state.facultyVisible[course.faculty] = true;
             updateFacultyList(state.semesters[state.activeSemester].faculty);
         }
 
