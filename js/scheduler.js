@@ -54,7 +54,7 @@ export function createCourse(rowData) {
  * "First Last" -> "Last"
  */
 function extractLastName(faculty) {
-    if (!faculty) return 'TBA';
+    if (!faculty) return '';
 
     faculty = faculty.trim();
 
@@ -76,7 +76,7 @@ function extractLastName(faculty) {
 /**
  * Check all courses for overlaps (faculty and room)
  */
-export function checkAllOverlaps(courses, checkTBA = true) {
+export function checkAllOverlaps(courses, check = true) {
     // Reset overlap flags
     for (const course of courses) {
         course.hasOverlap = false;
@@ -96,8 +96,8 @@ export function checkAllOverlaps(courses, checkTBA = true) {
 
             // Check faculty overlap
             if (course1.faculty === course2.faculty) {
-                // Skip TBA faculty if not checking
-                if (!checkTBA && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD')) {
+                // Skip  faculty if not checking
+                if (!checkTBA && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD' || course1.faculty.toUpperCase() === 'INSTRUCTOR')) {
                     // Skip
                 } else if (timeOverlap) {
                     course1.hasOverlap = true;
