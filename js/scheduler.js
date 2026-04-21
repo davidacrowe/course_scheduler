@@ -97,7 +97,7 @@ export function checkAllOverlaps(courses, check = true) {
             // Check faculty overlap
             if (course1.faculty === course2.faculty) {
                 // Skip  faculty if not checking
-                if (!checkTBA && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD' || course1.faculty.toUpperCase() === 'INSTRUCTOR')) {
+                if (!checkTBAOverlap && (course1.faculty.toUpperCase() === 'TBA' || course1.faculty.toUpperCase() === 'TBD' || course1.faculty.toUpperCase() === 'INSTRUCTOR')) {
                     // Skip
                 } else if (timeOverlap) {
                     course1.hasOverlap = true;
