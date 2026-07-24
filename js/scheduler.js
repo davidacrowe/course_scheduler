@@ -54,7 +54,7 @@ export function createCourse(rowData) {
  * "First Last" -> "Last"
  */
 function extractLastName(faculty) {
-    if (!faculty) return '';
+    if (!faculty) return 'TBA';
 
     faculty = faculty.trim();
 
@@ -76,7 +76,7 @@ function extractLastName(faculty) {
 /**
  * Check all courses for overlaps (faculty and room)
  */
-export function checkAllOverlaps(courses, check = true) {
+export function checkAllOverlaps(courses, checkTBAOverlap = true) {
     // Reset overlap flags
     for (const course of courses) {
         course.hasOverlap = false;
